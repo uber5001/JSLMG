@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<style>
+			canvas {
+				display: block;
+			}
+			body {
+				margin: 0;
+			}
+		</style>
+		<script>
+			function thisIsAThat(a, b) {
+				for (var i in b.prototype) {
+					a.prototype[i] = b.prototype[i];
+				}
+				a.prototype.super = b.prototype;
+			}
+			function removeFromArray(arr, o) {
+				for (var i in arr) {
+					if (arr[i] == o) {
+						delete arr[i];
+					}
+				}
+			}
+			window.addEventListener('load', function(){
+				var keyList = []; //lazy shit pro;
+				window.test2 = keyList;
+				window.addEventListener('keydown', function(e) {
+					keyList[e.keyCode] = true;
+				});
+				window.addEventListener('keyup', function(e) {
+					keyList[e.keyCode] = false;
+				});
+				var context = canvas.getContext('2d');
+				window.test = context;
+				window.addEventListener('resize', resize);
+				function resize() {
+					canvas.width = window.innerWidth;
+					canvas.height = window.innerHeight;
+				} resize();
+				function Bullet(pos, vel, col) {
+					this.size = 2;
+					this.pos = pos;
+					this.vel = vel;
+					this.col = col;
+				}
+				Bullet.prototype.update = function() {
+					this.pos.x += this.vel.x;
+					this.pos.y += this.vel.y;
+				}
+				Bullet.prototype.render = function() {
+					context.beginPath();
+					context.moveTo(this.pos.x - this.vel.x, this.pos.y - this.vel.y);
+					context.lineTo(this.pos.x + this.vel.x, this.pos.y + this.vel.y);
+					context.setStrokeColor("hsl("+this.col+", 100%, 50%)");
+					context.lineWidth = this.size;
+					context.stroke();
+				}
+				Bullet.prototype.destroy = function() {
+					removeFromArray(playerBulletList, this);
+					removeFromArray(foeBulletList, this);
+				}
+
+				function Player(pos) {
+					this.pos = pos;
+					this.col = 0;
+					this.size = 20;
+					this.speed = 6;
+					this.fired = false;
+				}
+				Player.prototype.update = function() {
+					if (keyList[32]) {
+						//shoot
+						if (!this.fired) {
+							playerBulletList.push(new Bullet({x:this.pos.x, y:this.pos.y},{x:0, y:-10},this.col))
+						}
+						this.fired = true;
+					} else {
+						this.fired = false;
+					}
+					if (keyList[37]) {
+						//left
+						this.pos.x-=this.speed;
+					}
+					if (keyList[38]) {
+						//top
+						this.pos.y-=this.speed;
+					}
+					if (keyList[39]) {
+						//right
+						this.pos.x+=this.speed;
+					}
+					if (keyList[40]) {
+						//down
+						this.pos.y+=this.speed;
+					}
+				}
+				Player.prototype.render = function() {
+					context.fillStyle = "hsl(" + this.col + ", 100%, 50%)";
+					context.fillRect(this.pos.x - this.size/2, this.pos.y - this.size/2, this.size, this.size);
+				}
+				Player.prototype.destroy = function() {
+					removeFromArray(playerList, this);
+				}
+
+				function Foe(pos) {
+					this.pos = pos
+					this.size = 30;
+					this.speed = 5;
+					this.col = Math.random()*360;
+					this.fireDelay = 100;
+					this.fireTimer = this.fireDelay;
+				}
+				Foe.prototype.update = function() {
+					this.fireTimer--;
+					if (this.fireTimer <= 0) {
+						this.fireTimer = this.fireDelay;
+						foeBulletList.push(new Bullet({x:this.pos.x, y:this.pos.y},{x:0, y:10}, this.col));
+					}
+				}
+				Foe.prototype.render = function() {
+					context.strokeStyle = "hsl(" + this.col + ", 100%, " + (1000/this.fireTimer + 50) + "%)";
+					context.lineWidth = this.fireTimer < 20 ? (this.fireTimer < 10 ? 10 : 5) : 2;
+					context.strokeRect(this.pos.x - this.size/2, this.pos.y - this.size/2, this.size, this.size);
+				}
+				Foe.prototype.destroy = function() {
+					removeFromArray(foeList, this);
+				}
+
+
+
+
+
+
+
+				function Expander(pos, col) {
+					this.size = 30;
+					this.pos = {x:window.innerWidth/2, y: -this.size/2 + 2};
+					if (pos !== undefined) this.pos = pos;
+					this.col = Math.random()*360;
+					if (col !== undefined) this.col = col;
+					this.fireDelay = 100;
+					this.fireTimer = this.fireDelay;
+					this.home = {x:window.innerWidth*Math.random(), y:window.innerHeight*Math.random()};
+				}
+				thisIsAThat(Expander, Foe);
+				Expander.prototype.update = function() {
+					this.delta = {x:this.pos.x - this.home.x,
+								y: this.pos.y - this.home.y};
+					this.dist = Math.sqrt(this.delta.x*this.delta.x + this.delta.y*this.delta.y);
+
+					this.vel = {x:0, y:0};
+					this.vel.x -= (this.delta.x)*(.016+1/this.dist);
+					this.vel.y -= (this.delta.y)*(.016+1/this.dist);
+
+					for (var i in playerList) {
+						var dx = this.pos.x - playerList[i].pos.x;
+						var dy = this.pos.y - playerList[i].pos.y;
+						var dist = Math.sqrt(dx*dx+dy*dy);
+						var weight = 1500/dist/playerList.length-5;
+						if (weight < 0) weight = 0;
+						dx = dx/dist;
+						dy = dy/dist;
+						this.vel.x += dx*weight;
+						this.vel.y += dy*weight;
+					}
+					this.pos.x += this.vel.x;
+					this.pos.y += this.vel.y;
+
+					if (this.dist < 1) {
+						//foeList.push(new Expander({x:this.pos.x,y:this.pos.y},this.col));
+						//foeList.push(new Expander({x:this.pos.x,y:this.pos.y},this.col));
+						for (var i = 0; i < 12; i++) {
+							foeBulletList.push(new Bullet({x:this.pos.x, y:this.pos.y},{x:5*Math.cos(2*Math.PI*i/12), y:5*Math.sin(2*Math.PI*i/12)}, this.col));
+						}
+						this.destroy();
+					}
+				}
+				Expander.prototype.render = function() {
+					context.beginPath();
+					context.fillStyle = "hsl(" + this.col + ", " + 10000/this.dist + "%, " + (1500/this.dist + 10) + "%)";
+					context.arc(this.pos.x, this.pos.y, this.size/2, 0, 2*Math.PI);
+					context.fill();
+
+					context.beginPath();
+					context.lineWidth = 1;
+					context.strokeStyle = "hsl(" + this.col + ", " + 10000/this.dist + "%, " + (1500/this.dist + 10) + "%)";
+					context.arc(this.home.x, this.home.y, this.size/2, 0, 2*Math.PI);
+					context.stroke();
+				}
+
+
+
+
+				function Pather(count, copycat) {
+					this.pos = {x:0, y:0};
+					this.size = 30;
+					if (copycat) {
+						this.col = copycat.col;
+						this.path = copycat.path;
+						this.dir = this.firstDir = copycat.firstDir;
+					} else {
+						this.col = Math.random()*360;
+						this.path = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+						for (var i = 0; i < 40; i++) {
+							this.path.push(Math.round(Math.random()*2-1));
+						}
+						if (Math.random() > .5) {
+							this.dir = this.firstDir = 5;
+						} else {
+							this.dir = this.firstDir = 3;
+						}
+					}
+					if (this.firstDir == 5) {
+						this.pos.x = window.innerWidth + this.size/2 - 1;
+					} else {
+						this.pos.x = -this.size/2 + 1;
+					}
+					this.count = count;
+					this.countDelay = 30;
+					this.countTimer = this.countDelay;
+					this.pathIndex = 0;
+					this.pathDelay = 10;
+					this.pathTimer = this.pathDelay;
+					this.speed = 2;
+					this.fireDelay = 150 + 150*Math.random();
+					this.fireTimer = this.fireDelay;
+				}
+				thisIsAThat(Pather, Foe);
+				Pather.prototype.update = function() {
+					this.countTimer--;
+					if (this.countTimer == 0 && this.count > 1)
+						foeList.push(new Pather(this.count-1,this))
+					this.pathTimer--;
+					if (this.pathTimer <= 0) {
+						this.pathTimer = this.pathDelay;
+						this.pathIndex++;
+						if (this.pathIndex >= this.path.length) this.pathIndex = 0;
+						this.dir += this.path[this.pathIndex];
+						while (this.dir > 7) this.dir -= 7;
+						while (this.dir < 0) this.dir += 7;
+					}
+					var vel = {x: 0, y: 0};
+					switch (this.dir) {
+						case 0:
+							vel = {x: 0, y: -1};
+							break;
+						case 1:
+							vel = {x: 1, y: -1};
+							break;
+						case 2:
+							vel = {x: 1, y: 0};
+							break;
+						case 3:
+							vel = {x: 1, y: 1};
+							break;
+						case 4:
+							vel = {x: 0, y: 1};
+							break;
+						case 5:
+							vel = {x: -1, y: 1};
+							break;
+						case 6:
+							vel = {x: -1, y: 0};
+							break;
+						case 7:
+							vel = {x: -1, y: -1};
+							break;
+					}
+					this.pos.x += vel.x * this.speed;
+					this.pos.y += vel.y * this.speed;
+					this.super.update.call(this);
+				}
+
+
+
+
+
+
+
+
+
+
+
+
+
+				var playerList = [];
+				var playerBulletList = [];
+				var foeList = [];
+				var foeBulletList = [];
+
+				var updateLists = [playerList, playerBulletList, foeList, foeBulletList];
+				window.test3 = updateLists;
+				playerList.push(new Player({x:window.innerWidth/2, y:window.innerHeight/2}));
+
+				function collide(a, b) {
+					if (a.size/2 + b.size/2 > Math.abs(a.pos.x - b.pos.x) + Math.abs(a.pos.y - b.pos.y)) {
+						a.destroy();
+						b.destroy();
+						return true;
+					} else {
+						return false;
+					}
+				}
+				var spawnDelay = 30;
+				var spawnTimer = 100;
+				function wave() {
+					if (Math.random() > .5)
+						foeList.push(new Pather(2));
+					else
+						foeList.push(new Expander());
+				}
+				function update() {
+					spawnTimer--;
+					if (spawnTimer <= 0) {
+						spawnTimer = spawnDelay;
+						wave();
+					}
+					for (var i in updateLists) {
+						for (var j in updateLists[i]) {
+							updateLists[i][j].update();
+						}
+					}
+
+					outerloop:
+					for (var i in playerList) {
+						for (var j in foeBulletList) {
+							if (collide(playerList[i], foeBulletList[j]))
+								continue outerloop;
+						}
+					}
+
+					outerloop:
+					for (var i in foeList) {
+						for (var j in playerBulletList) {
+							if (collide(foeList[i], playerBulletList[j]))
+								continue outerloop;
+						}
+					}
+
+					outerloop:
+					for (var i in foeList) {
+						for (var j in playerList) {
+							if (collide(foeList[i], playerList[j]))
+								continue outerloop;
+						}
+					}
+
+					garbageCheck(foeBulletList);
+					garbageCheck(playerBulletList);
+					bound(playerList);
+					garbageCheck(foeList);
+				}
+				function garbageCheck(arr) {
+					for (var i in arr) {
+						if (arr[i].pos.x < -arr[i].size/2 ||
+							arr[i].pos.y < -arr[i].size/2 ||
+							arr[i].pos.x > window.innerWidth + arr[i].size/2 ||
+							arr[i].pos.y > window.innerHeight+ arr[i].size/2) {
+							delete arr[i];
+						}
+					}
+				}
+				function bound(arr) {
+					for (var i in arr) {
+						if (arr[i].pos.x < arr[i].size/2) {
+							arr[i].pos.x = arr[i].size/2
+						} else if (arr[i].pos.x > window.innerWidth - arr[i].size/2) {
+							arr[i].pos.x = window.innerWidth - arr[i].size/2;
+						}
+						if (arr[i].pos.y < arr[i].size/2) {
+							arr[i].pos.y = arr[i].size/2;
+						} else if (arr[i].pos.y > window.innerHeight- arr[i].size/2) {
+							arr[i].pos.y = window.innerHeight- arr[i].size/2;
+						}
+					}
+				}
+				function render() {
+					context.fillStyle = "black";
+					context.fillRect(0,0,window.innerWidth,window.innerHeight);
+					for (var i in updateLists) {
+						for (var j in updateLists[i]) {
+							if (i != "remove" && j != "remove") {
+								updateLists[i][j].render();
+							}
+						}
+					}
+					requestAnimationFrame(function(){render();});
+				}
+				setInterval(update, 1000/50);
+				render();
+			});
+		</script>
+	</head>
+	<body>
+		<canvas id="canvas">
+		</canvas>
+	</body>
+</html>
