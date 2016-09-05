@@ -53,7 +53,7 @@
 					context.beginPath();
 					context.moveTo(this.pos.x - this.vel.x, this.pos.y - this.vel.y);
 					context.lineTo(this.pos.x + this.vel.x, this.pos.y + this.vel.y);
-					context.setStrokeColor("hsl("+this.col+", 100%, 50%)");
+					context.strokeStyle = ("hsl("+this.col+", 100%, 50%)");
 					context.lineWidth = this.size;
 					context.stroke();
 				}
